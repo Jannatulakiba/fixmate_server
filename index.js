@@ -8,6 +8,9 @@ import adminRouter from "./src/routes/admin.js";
 import bookingsRouter from "./src/routes/bookings.js";
 import paymentsRouter, { webhookHandler } from "./src/routes/payments.js";
 
+import { verifyToken, verifyAdmin, verifyTechnician } from "./src/middleware/auth.js";
+import technicianRouter from "./src/routes/technician.js";
+
 const required = ["MONGODB_URI", "BETTER_AUTH_URL", "NEXT_PUBLIC_API_URL", "CLIENT_URL", "STRIPE_SECRET_KEY"];
 const missing = required.filter((k) => !process.env[k]);
 if (missing.length) {
@@ -31,11 +34,13 @@ app.use(cors(corsOptions));
 app.post("/api/payments/webhook", express.raw({ type: "application/json" }), webhookHandler);
 
 app.use(express.json());
+app.use("/api/admin", verifyToken, verifyAdmin, adminRouter);
+app.use("/api/technician", verifyToken, verifyTechnician, technicianRouter);
 
 app.use("/api/bookings", bookingsRouter);
 app.use("/api/payments", paymentsRouter);
 app.use("/api/services", servicesRouter);
-app.use("/api/admin", verifyToken, verifyAdmin, adminRouter);
+
 
 app.get("/", (req, res) => res.json({ name: "FixMate API", status: "ok" }));
 app.get("/api/me", verifyToken, (req, res) => res.json(req.user));
