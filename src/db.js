@@ -13,7 +13,7 @@ export async function connectDB() {
   await db.collection("payments").createIndex({ stripeSessionId: 1 }, { unique: true });
   await db.collection("payments").createIndex({ bookingId: 1 }, { unique: true });
 
-  // duita request ek shathe ashleo ekta-i active booking thakbe
+
   await db.collection("bookings").createIndex(
   { serviceId: 1, customerEmail: 1 },
   {
