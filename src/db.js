@@ -11,11 +11,10 @@ export async function connectDB() {
   await db.collection("bookings").createIndex({ customerEmail: 1 });
   await db.collection("bookings").createIndex({ technicianEmail: 1 });
   await db.collection("payments").createIndex({ stripeSessionId: 1 }, { unique: true });
-  await db.collection("bookings").createIndex({ customerEmail: 1 });
-await db.collection("bookings").createIndex({ technicianEmail: 1 });
+  await db.collection("payments").createIndex({ bookingId: 1 }, { unique: true });
 
-// duita request ek shathe ashleo ekta-i active booking thakbe
-await db.collection("bookings").createIndex(
+  // duita request ek shathe ashleo ekta-i active booking thakbe
+  await db.collection("bookings").createIndex(
   { serviceId: 1, customerEmail: 1 },
   {
     unique: true,
