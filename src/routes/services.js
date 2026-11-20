@@ -36,6 +36,11 @@ function cleanService(b = {}) {
 
 /* ---------- Public ---------- */
 
+// Categories + modes er single source of truth — client ei endpoint theke read kore
+router.get("/categories", (req, res) => {
+  res.json({ categories: CATEGORIES, modes: MODES });
+});
+
 // Search, filter, sort shob MongoDB te
 router.get("/", async (req, res, next) => {
   try {

@@ -2,14 +2,16 @@ import "dotenv/config";
 import express from "express";
 import cors from "cors";
 import { connectDB } from "./src/db.js";
-import { verifyToken, verifyAdmin } from "./src/middleware/auth.js";
+import { verifyToken, verifyAdmin, verifyTechnician, verifyCustomer } from "./src/middleware/auth.js";
 import servicesRouter from "./src/routes/services.js";
 import adminRouter from "./src/routes/admin.js";
 import bookingsRouter from "./src/routes/bookings.js";
 import paymentsRouter, { webhookHandler } from "./src/routes/payments.js";
-
-import { verifyToken, verifyAdmin, verifyTechnician } from "./src/middleware/auth.js";
 import technicianRouter from "./src/routes/technician.js";
+import customerRouter from "./src/routes/customer.js";
+import publicRouter from "./src/routes/public.js";
+import usersRouter from "./src/routes/users.js";
+
 
 const required = ["MONGODB_URI", "BETTER_AUTH_URL", "NEXT_PUBLIC_API_URL", "CLIENT_URL", "STRIPE_SECRET_KEY"];
 const missing = required.filter((k) => !process.env[k]);
@@ -33,9 +35,16 @@ app.use(cors(corsOptions));
 // Stripe webhook er AGE: signature check raw body chay, tai express.json() er age
 app.post("/api/payments/webhook", express.raw({ type: "application/json" }), webhookHandler);
 
+
+
+
 app.use(express.json());
-app.use("/api/admin", verifyToken, verifyAdmin, adminRouter);
+
 app.use("/api/technician", verifyToken, verifyTechnician, technicianRouter);
+app.use("/api/customer", verifyToken, verifyCustomer, customerRouter);
+app.use("/api/users", usersRouter);
+app.use("/api/public", publicRouter);
+app.use("/api/admin", verifyToken, verifyAdmin, adminRouter);
 
 app.use("/api/bookings", bookingsRouter);
 app.use("/api/payments", paymentsRouter);
