@@ -131,29 +131,38 @@ router.get("/my", verifyToken, verifyCustomer, async (req, res, next) => {
 export async function webhookHandler(req, res) {
   const secret = process.env.STRIPE_WEBHOOK_SECRET;
   if (!secret) {
-    // stripe listen / Dashboard theke secret na ashole signature verify kora jay na
+    console.error("[webhook] STRIPE_WEBHOOK_SECRET is not set");
     return res.status(503).send("STRIPE_WEBHOOK_SECRET is not configured");
+  }
+
+  const signature = req.headers["stripe-signature"];
+  if (!signature) return res.status(400).send("Missing signature");
+
+  // raw body Buffer hote hobe, parsed object hole signature mile na
+  const payload = Buffer.isBuffer(req.body) ? req.body : req.rawBody;
+  if (!payload) {
+    console.error("[webhook] raw body not available, body type:", typeof req.body);
+    return res.status(400).send("Raw body not available");
   }
 
   let event;
   try {
-    event = stripe.webhooks.constructEvent(
-      req.body, // raw Buffer
-      req.headers["stripe-signature"],
-      secret
-    );
+    event = stripe.webhooks.constructEvent(payload, signature, secret);
   } catch (err) {
-    console.error("Webhook signature failed:", err.message);
+    console.error("[webhook] signature failed:", err.message);
     return res.status(400).send("Invalid signature");
   }
 
+  console.log("[webhook] received", event.type, event.id);
+
   try {
     if (event.type === "checkout.session.completed" || event.type === "checkout.session.async_payment_succeeded") {
-      await savePayment(event.data.object);
+      const payment = await savePayment(event.data.object);
+      console.log("[webhook] payment:", payment ? `saved ${payment.transactionId}` : "skipped (not paid or no booking metadata)");
     }
     res.json({ received: true });
   } catch (e) {
-    console.error("Webhook handler error:", e);
+    console.error("[webhook] handler error:", e);
     res.status(500).send("Webhook handler failed"); // Stripe abar retry korbe
   }
 }

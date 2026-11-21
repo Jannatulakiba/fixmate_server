@@ -24,7 +24,7 @@ const app = express();
 
 const allowedOrigins = [
   ...(process.env.CLIENT_URL ?? "").split(","),
-
+"https://fixmate-client-seven.vercel.app",
   "http://localhost:3000",
 ]
   .map((s) => s.trim().replace(/\/+$/, ""))
@@ -54,7 +54,7 @@ app.use(async (req, res, next) => {
 });
 
 // Stripe webhook express.json() er AGE
-app.post("/api/payments/webhook", express.raw({ type: "application/json" }), webhookHandler);
+app.post("/api/payments/webhook", express.raw({ type: "*/*" }), webhookHandler);
 
 app.use(express.json());
 
