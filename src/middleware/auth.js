@@ -1,19 +1,26 @@
 import { createRemoteJWKSet, jwtVerify } from "jose";
 import { col } from "../db.js";
 
-const AUTH_URL = process.env.BETTER_AUTH_URL;
-if (!AUTH_URL) throw new Error("AUTH_URL (or BETTER_AUTH_URL) is not set");
+const AUTH_URL = (process.env.BETTER_AUTH_URL || "").replace(/\/+$/, "");
 
-const JWKS = createRemoteJWKSet(new URL(`${AUTH_URL}/api/auth/jwks`));
+// import er shomoy na, prothom use e toiri hobe
+let JWKS;
+const getJWKS = () => (JWKS ??= createRemoteJWKSet(new URL(`${AUTH_URL}/api/auth/jwks`)));
 
 // 401: token nai ba invalid
 export async function verifyToken(req, res, next) {
+  if (!AUTH_URL) {
+    console.error("BETTER_AUTH_URL is not set on the server");
+    return res.status(500).json({ message: "Server auth is not configured" });
+  }
+
   const header = req.headers.authorization;
   if (!header?.startsWith("Bearer ")) {
     return res.status(401).json({ message: "Unauthorized" });
   }
+
   try {
-    const { payload } = await jwtVerify(header.slice(7), JWKS, {
+    const { payload } = await jwtVerify(header.slice(7), getJWKS(), {
       issuer: AUTH_URL,
       audience: AUTH_URL,
     });
