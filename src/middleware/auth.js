@@ -1,7 +1,7 @@
 import { createRemoteJWKSet, jwtVerify } from "jose";
 import { col } from "../db.js";
 
-const AUTH_URL = process.env.AUTH_URL ?? process.env.BETTER_AUTH_URL;
+const AUTH_URL = process.env.BETTER_AUTH_URL;
 if (!AUTH_URL) throw new Error("AUTH_URL (or BETTER_AUTH_URL) is not set");
 
 const JWKS = createRemoteJWKSet(new URL(`${AUTH_URL}/api/auth/jwks`));

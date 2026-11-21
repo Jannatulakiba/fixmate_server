@@ -12,73 +12,84 @@ import customerRouter from "./src/routes/customer.js";
 import publicRouter from "./src/routes/public.js";
 import usersRouter from "./src/routes/users.js";
 
-
-const required = ["MONGODB_URI", "BETTER_AUTH_URL", "NEXT_PUBLIC_API_URL", "CLIENT_URL", "STRIPE_SECRET_KEY"];
+// Missing env hole crash na kore log kore
+const required = ["MONGODB_URI", "CLIENT_URL", "STRIPE_SECRET_KEY"];
 const missing = required.filter((k) => !process.env[k]);
 if (missing.length) {
   console.error("Missing env variables:", missing.join(", "));
-  process.exit(1);
+  if (!process.env.VERCEL) process.exit(1);
 }
-
-
-
-
 
 const app = express();
 
-const corsOptions = {};
-const clientUrls = (process.env.CLIENT_URL ?? "").split(",").map((s) => s.trim()).filter(Boolean);
-if (clientUrls.length) corsOptions.origin = clientUrls;
-corsOptions.credentials = true;
-app.use(cors(corsOptions));
+const allowedOrigins = [
+  ...(process.env.CLIENT_URL ?? "").split(","),
+  "https://fixmate-client-seven.vercel.app",
+  "http://localhost:3000",
+]
+  .map((s) => s.trim().replace(/\/+$/, ""))
+  .filter(Boolean);
 
-// Stripe webhook er AGE: signature check raw body chay, tai express.json() er age
+app.use(
+  cors({
+    origin: allowedOrigins,
+    credentials: true,
+    methods: ["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+  })
+);
+
+// Prottek request e DB ready kora (ekbar connect, tarpor reuse)
+let dbReady;
+app.use(async (req, res, next) => {
+  try {
+    dbReady ??= connectDB();
+    await dbReady;
+    next();
+  } catch (e) {
+    dbReady = undefined;
+    console.error("MongoDB connection failed:", e?.message ?? e);
+    res.status(500).json({ message: "Database connection failed" });
+  }
+});
+
+// Stripe webhook express.json() er AGE
 app.post("/api/payments/webhook", express.raw({ type: "application/json" }), webhookHandler);
 
-
-
-
 app.use(express.json());
-
-app.use("/api/technician", verifyToken, verifyTechnician, technicianRouter);
-app.use("/api/customer", verifyToken, verifyCustomer, customerRouter);
-app.use("/api/users", usersRouter);
-app.use("/api/public", publicRouter);
-app.use("/api/admin", verifyToken, verifyAdmin, adminRouter);
-
-app.use("/api/bookings", bookingsRouter);
-app.use("/api/payments", paymentsRouter);
-app.use("/api/services", servicesRouter);
-
 
 app.get("/", (req, res) => res.json({ name: "FixMate API", status: "ok" }));
 app.get("/api/me", verifyToken, (req, res) => res.json(req.user));
 
+app.use("/api/public", publicRouter);
+app.use("/api/services", servicesRouter);
+app.use("/api/users", usersRouter);
+app.use("/api/bookings", bookingsRouter);
+app.use("/api/payments", paymentsRouter);
+app.use("/api/technician", verifyToken, verifyTechnician, technicianRouter);
+app.use("/api/customer", verifyToken, verifyCustomer, customerRouter);
+app.use("/api/admin", verifyToken, verifyAdmin, adminRouter);
+
 app.use((req, res) => res.status(404).json({ message: "Route not found" }));
 
 app.use((err, req, res, next) => {
-  // vul JSON body
-  if (err.type === "entity.parse.failed") {
-    return res.status(400).json({ message: "Invalid JSON body" });
-  }
-  if (err.type === "entity.too.large") {
-    return res.status(413).json({ message: "Request body too large" });
-  }
+  if (err.type === "entity.parse.failed") return res.status(400).json({ message: "Invalid JSON body" });
+  if (err.type === "entity.too.large") return res.status(413).json({ message: "Request body too large" });
   console.error(err);
   res.status(500).json({ message: "Internal server error" });
 });
 
-try {
-  await connectDB();
-} catch (e) {
-  if (e?.code === 8000 || /bad auth/i.test(e?.message ?? "")) {
-    console.error(
-      "MongoDB auth failed: MONGODB_URI credentials rejected by Atlas.\n" +
-        "→ MongoDB Atlas > Database Access: check username/password (and IP Access List)."
-    );
-  } else {
+// Sudhu local e listen
+if (!process.env.VERCEL) {
+  const port = process.env.PORT || 5000;
+  try {
+    dbReady = connectDB();
+    await dbReady;
+  } catch (e) {
     console.error("MongoDB connection failed:", e?.message ?? e);
+    process.exit(1);
   }
-  process.exit(1);
+  app.listen(port, () => console.log("Server running on port", port));
 }
-app.listen(process.env.PORT || 5000, () => console.log("Server running on port", process.env.PORT || 5000));
+
+export default app;
