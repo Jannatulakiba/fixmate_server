@@ -24,7 +24,7 @@ const app = express();
 
 const allowedOrigins = [
   ...(process.env.CLIENT_URL ?? "").split(","),
-  "https://fixmate-client-seven.vercel.app",
+
   "http://localhost:3000",
 ]
   .map((s) => s.trim().replace(/\/+$/, ""))
