@@ -6,7 +6,19 @@ import { verifyToken, verifyCustomer } from "../middleware/auth.js";
 
 const router = Router();
 const isId = (id) => ObjectId.isValid(id) && String(new ObjectId(id)) === id;
-const CLIENT = () => process.env.CLIENT_URL.split(",")[0].trim();
+const ALLOWED = [
+  ...(process.env.CLIENT_URL ?? "").split(","),
+  "https://fixmate-client-seven.vercel.app",
+  "http://localhost:3000",
+]
+  .map((s) => s.trim().replace(/\/+$/, ""))
+  .filter(Boolean);
+
+// checkout je client theke shuru hoyeche, payment er por shei client e-i ferot jabe
+const clientBase = (req) => {
+  const origin = (req.headers.origin || "").replace(/\/+$/, "");
+  return ALLOWED.includes(origin) ? origin : "https://fixmate-client-seven.vercel.app";
+};
 
 /*
   Success page verify ar webhook, duto-i ei function chalay.
@@ -84,8 +96,8 @@ router.post("/create-checkout-session", verifyToken, verifyCustomer, async (req,
         },
       ],
       metadata: { bookingId: String(booking._id), customerEmail: req.user.email },
-      success_url: `${CLIENT()}/payment/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${CLIENT()}/payment/cancel`,
+      success_url: `${clientBase(req)}/payment/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${clientBase(req)}/payment/cancel`,
     });
 
     res.json({ url: session.url });

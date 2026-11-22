@@ -58,7 +58,7 @@ app.post("/api/payments/webhook", express.raw({ type: "*/*" }), webhookHandler);
 
 app.use(express.json());
 
-app.get("/", (req, res) => res.json({ name: "FixMate API", status: "ok" }));
+app.get("/", (req, res) => res.json({ name: "FixMate API", status: "ok", build: "clientBase-fix" }));
 app.get("/api/me", verifyToken, (req, res) => res.json(req.user));
 
 app.use("/api/public", publicRouter);
@@ -69,6 +69,14 @@ app.use("/api/payments", paymentsRouter);
 app.use("/api/technician", verifyToken, verifyTechnician, technicianRouter);
 app.use("/api/customer", verifyToken, verifyCustomer, customerRouter);
 app.use("/api/admin", verifyToken, verifyAdmin, adminRouter);
+
+// Purono Stripe session server domain e ferot pathale client e redirect kore dey
+const CLIENT_HOME = "https://fixmate-client-seven.vercel.app";
+app.get("/payment/success", (req, res) => {
+  const q = req.originalUrl.includes("?") ? req.originalUrl.slice(req.originalUrl.indexOf("?")) : "";
+  res.redirect(302, `${CLIENT_HOME}/payment/success${q}`);
+});
+app.get("/payment/cancel", (req, res) => res.redirect(302, `${CLIENT_HOME}/payment/cancel`));
 
 app.use((req, res) => res.status(404).json({ message: "Route not found" }));
 
